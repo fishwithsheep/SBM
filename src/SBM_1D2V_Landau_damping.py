@@ -1,8 +1,16 @@
 from function import mollifier, random_group, batch_simulate_circle_BM
+
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('Agg')  
+plt.rcParams['text.usetex'] = True
+
 import numpy as np
 np.random.seed(10)
-import os
+
+from pathlib import Path
+address=Path.cwd().parent
+
 import random
 random.seed(10)
 import time
@@ -95,7 +103,7 @@ class Landau_damping_1D2V_SBM_solution():
         self.x2 = grid__[1].reshape([-1, 1])
 
     
-    def solve(self,dt:float,all:np.ndarray,m:int=5,draw:bool=True)->tuple:
+    def solve(self,dt:float,all:np.ndarray,path:Path,m:int=5,draw:bool=True)->tuple:
         
         """Solve Landau equation.
 
@@ -106,6 +114,8 @@ class Landau_damping_1D2V_SBM_solution():
         all : np.ndarray
             The velocity and position matrix (phase matrix) of particles at time T, whose shape is (num, 3). The first and second column 
             is about velocity, and the third column is about position.
+        path : Path
+            Parent file of experiment figure and data.
         m : int, optional
             iteration num.
         draw : bool, optional
@@ -166,8 +176,8 @@ class Landau_damping_1D2V_SBM_solution():
                 for i in range(int(V_tem.shape[0] / 2)):
                     p1 = group[i, 0]
                     p2 = group[i, -1]
-                    V1 = V_tem[p1].reshape(1, -1)
-                    V2 = V_tem[p2].reshape(1, -1)
+                    V1 = V_tem[[p1]]
+                    V2 = V_tem[[p2]]
                     z = V1 - V2
                     z_unit = z / np.linalg.norm(z)
                     q = np.array(batch_simulate_circle_BM(z_batch=np.array(z_unit),
@@ -234,10 +244,10 @@ class Landau_damping_1D2V_SBM_solution():
                 particle_energy.append(0.5 * self.total / length * np.linalg.norm(V) ** 2)
                 electric_energy.append(np.linalg.norm(E) ** 2*self.h/2)
 
-            print(f't={np.round((t + 1) * dt, 3)} finished')
+            print(f't={np.round((t + 1) * dt, 3)} finished 👌')
 
             if t % int(1 / dt) == int(1 / dt) - 1:
-                np.save(os.path.join(address,f'T={(t + 1) * dt}_phase'), all)
+                np.save(path/'data'/f'T={(t + 1) * dt}_phase', all)
 
                 if draw:
                     Z = np.zeros(shape=[self.n0 ** self.d_of_V, 1])
@@ -251,7 +261,7 @@ class Landau_damping_1D2V_SBM_solution():
                         x = x[choice]
                         Z[i] = np.sum(mollifier(d=self.d_of_V, x=x, epsilon=epsilon), axis=0)
                     Z = Z / length
-                    self.drawing1(Z.reshape(-1, self.n0),(t + 1) * dt,length)
+                    self.drawing1(Z.reshape(-1, self.n0),(t + 1) * dt,path)
 
                     for i in range(self.n0 ** self.d_of_V):
                         x = np.repeat(all_y[i].reshape(1, -1), length, axis=0) - all
@@ -261,7 +271,7 @@ class Landau_damping_1D2V_SBM_solution():
                         x = x[choice]
                         Z[i] = np.sum(mollifier(d=self.d_of_V, x=x, epsilon=epsilon), axis=0)
                     Z = Z / length
-                    self.drawing2(Z.reshape(-1, self.n0),(t + 1) * dt,length)
+                    self.drawing2(Z.reshape(-1, self.n0),(t + 1) * dt,path)
 
                     Z = np.zeros(shape=[int(0.5 * self.n0 ** self.d_of_V), 1])
                     norm_all = np.concatenate((np.linalg.norm(V, axis=-1).reshape(-1, 1), X), axis=1)
@@ -273,65 +283,66 @@ class Landau_damping_1D2V_SBM_solution():
                         x = x[choice]
                         Z[i] = np.sum(mollifier(d=self.d_of_V, x=x, epsilon=epsilon), axis=0)
                     Z = Z / length
-                    self.drawing3(Z.reshape(-1, self.n0),(t + 1) * dt,length)
+                    self.drawing3(Z.reshape(-1, self.n0),(t + 1) * dt,path)
 
         return all,particle_energy, electric_energy,Time
 
 
-    def drawing1(self,matrix,T,N):
-        np.save(os.path.join(address,f'T={T}_v_x_distribution_in_space'),matrix)
+    def drawing1(self,matrix,T,path):
+        np.save(path/'data'/f'T={T}_v_x_distribution_in_space',matrix)
         plt.imshow(matrix, cmap='jet', origin='lower', extent=[0, 2*self.L, -self.L, self.L])
         plt.colorbar()
-        plt.xlabel('x')
-        plt.ylabel('v_x')
-        plt.title('v_x distribution in space')
+        plt.xlabel(r'x')
+        plt.ylabel(r'$v_x$')
+        plt.title(r'$v_x$ distribution in space')
         #plt.show()
-        plt.savefig(os.path.join(address,f'T={T}_v_x_distribution_in_space_graph.eps'),bbox_inches='tight',dpi=160)
+        plt.savefig(path/'figure'/f'T={T}_v_x_distribution_in_space_graph.png',bbox_inches='tight',dpi=250)
         plt.close()
 
-    def drawing2(self,matrix,T,N):
-        np.save(os.path.join(address,f'T={T}_v_y_distribution_in_space'),matrix)
+    def drawing2(self,matrix,T,path):
+        np.save(path/'data'/f'T={T}_v_y_distribution_in_space',matrix)
         plt.imshow(matrix, cmap='jet', origin='lower', extent=[0, 2*self.L, -self.L, self.L])
         plt.colorbar()
-        plt.xlabel('x')
-        plt.ylabel('v_y')
-        plt.title('v_y distribution in space')
+        plt.xlabel(r'x')
+        plt.ylabel(r'$v_y$')
+        plt.title(r'$v_y$ distribution in space')
         #plt.show()
-        plt.savefig(os.path.join(address,f'T={T}_v_y_distribution_in_space_graph.eps'),bbox_inches='tight',dpi=160)
+        plt.savefig(path/'figure'/f'T={T}_v_y_distribution_in_space_graph.png',bbox_inches='tight',dpi=250)
         plt.close()
 
-    def drawing3(self,matrix,T,N):
-        np.save(os.path.join(address,f'T={T}_v_module_distribution_in_space'),matrix)
+    def drawing3(self,matrix,T,path):
+        np.save(path/'data'/f'T={T}_v_module_distribution_in_space',matrix)
         plt.imshow(matrix, cmap='jet', origin='lower', extent=[0, 2*self.L, 0, 2**0.5*self.L])
         plt.colorbar()
-        plt.xlabel('x')
-        plt.ylabel('|v|')
-        plt.title('|v| distribution in space')
+        plt.xlabel(r'x')
+        plt.ylabel(r'$\|v\|_2$')
+        plt.title(r'$\|v\|_2$ distribution in space')
         #plt.show()
-        plt.savefig(os.path.join(address,f'T={T}_v_module_distribution_in_space_graph.eps'),bbox_inches='tight',dpi=160)
+        plt.savefig(path/'figure'/f'T={T}_v_module_distribution_in_space_graph.png',bbox_inches='tight',dpi=250)
         plt.close()
 
 
 
-T=50
+T=5
 v=2*np.pi
 n=128
 n0=200
 dt=0.02
 Dt=0.02
-alpha=0.1
-point=np.load(os.getcwd(),'data',f'initial_distribution_sampling\\500000_points_Landau_damping_1D_2V_alpha={alpha}.npy')[:500000]
+alpha=0.5
+point=np.load(address/'data'/f'initial_distribution_sampling'/f'500000_points_Landau_damping_1D_2V_alpha={alpha}.npy')[:50000]
 N=point.shape[0]
 DT=int(Dt/dt)
 epsilon=0.01
 Lambda=1
 gamma=-2
 gamma_decay=-1/(0.5)**3*np.power(np.pi/8,0.5)*np.exp(-1.5-0.5*0.5**-2)-Lambda*(2/(9*np.pi))**0.5
-address=os.path.join(os.getcwd(),'Landau_damping_1D2V','SBM',f'T={T}_L={int(v / np.pi)}pi_dt={dt}_n={n}_n0={n0}_N={N}_Lambda={Lambda}_alpha={alpha}_epsilon={epsilon}')
-os.makedirs(address,exist_ok=True)
+address_save=address/'result'/'Landau_damping_1D2V'/'SBM'/f'T={T}_L={int(v/np.pi)}pi_dt={dt}_n={n}_n0={n0}_N={N}_Lambda={Lambda}_alpha={alpha}_epsilon={epsilon}'
+address_save.joinpath('data').mkdir(parents=True,exist_ok=True)
+address_save.joinpath('figure').mkdir(parents=True,exist_ok=True)
 
 
-def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float)->None:
+def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float,path:Path,draw:bool=True)->None:
     """ Solve the Landau equation and save data draw graph.
 
     Parameters
@@ -348,41 +359,52 @@ def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float)
         Parameter of mollification kernel (epsilon>0).
     dt : float
         Time step.
+    path : Path
+        Parent file of experiment figure and data.
+    draw : bool, optional
+        whether draw or not the velocity distribution graph.
     """
     
     t = np.linspace(0, T, num=1 + int(T/Dt))
-    Y = Landau_damping_1D2V_SBM_solution(T=T, L=v, n=n, n0=n0, Lambda=Lambda, gamma=gamma,epsilon=epsilon)
-    all ,particle_energy ,electric_energy, Time= Y.solve(dt=dt,all=point,draw=False)
-    np.save(os.path.join(address,f'particle-energy'), particle_energy)
-    np.save(os.path.join(address,f'electric-energy'), electric_energy)
-    np.save(os.path.join(address,f'total-time'), Time)
+    Y = Landau_damping_1D2V_SBM_solution(T,v,n,n0,Lambda,gamma,epsilon)
+    all ,particle_energy ,electric_energy, Time= Y.solve(dt,point,path)
+    np.save(path/'data'/f'particle_energy', particle_energy)
+    np.save(path/'data'/f'electric_energy', electric_energy)
+    np.save(path/'data'/f'total_time', Time)
 
-    plt.plot(t, particle_energy)
+    plt.plot(t, particle_energy,marker='x',markersize=2.5,linewidth=0.9)
     plt.xlabel("T")
+    plt.ylabel('kinetic energy')
     plt.title('Kinetic energy')
+    plt.grid(True,alpha=0.3)
     #plt.show()
-    plt.savefig(os.path.join(address,f'kinetic-energy.png'), dpi=160)
+    plt.savefig(path/'figure'/f'kinetic_energy.png', dpi=250)
     plt.close()
 
-    plt.plot(t, np.power(2*np.array(electric_energy),0.5))
+    plt.plot(t, np.power(2*np.array(electric_energy),0.5),marker='x',markersize=2.5,linewidth=0.9,label=r'$\|E\|_2$')
     plt.xlabel("T")
-    plt.title('Electric field L_2 norm')
-    #end=np.minimum(T,np.log(0.1)/gamma_decay)
-    #plt.plot(t[:int(end/Dt)+1],np.power(2*electric_energy[0],0.5)*np.exp(gamma_decay*t[:int(end/Dt)+1]),'--',label='the decay predicted by theory')
+    plt.ylabel(r'electric field $L_2$ norm')
+    plt.title(r'Electric field $L_2$ norm')
+    end=np.minimum(T,np.log(0.1)/gamma_decay)
+    plt.plot(t[:int(end/Dt)+1],np.power(2*electric_energy[0],0.5)*np.exp(gamma_decay*t[:int(end/Dt)+1]),'--',
+        linewidth=0.9,label='decay rate predicted by theory')
     plt.yscale('log')
-    #plt.legend()
+    plt.legend(fontsize=12)
+    plt.grid(True,alpha=0.3)
     # plt.show()
-    plt.savefig(os.path.join(address,f'Electric-field-L_2-norm.png'), dpi=160)
+    plt.savefig(path/'figure'/f'Electric_field_L_2_norm.png', dpi=250)
     plt.close()
 
     plt.plot(t, np.array(electric_energy)+np.array(particle_energy))
     plt.xlabel("T")
     plt.title('Total energy')
+    plt.title('total energy')
+    plt.grid(True,alpha=0.3)
     plt.hlines(y=(np.array(electric_energy)+np.array(particle_energy))[0], xmin=0, xmax=T, colors='r', linestyles='--')
     # plt.show()
-    plt.savefig(os.path.join(address,f'total-energy.png'), dpi=160)
+    plt.savefig(path/'figure'/f'total_energy.png', dpi=250)
     plt.close()
 
-    print( 'ok')
+    print('👊🔥🌍🌏🌎🌌💥')
 
-save_and_draw(T=T,v=v,n=n,point=point,epsilon=epsilon,dt=dt)
+save_and_draw(T,v,n,point,epsilon,dt,address_save)

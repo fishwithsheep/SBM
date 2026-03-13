@@ -115,7 +115,7 @@ class two_dimension_Maxwell_SBM_solution():
         return [kinetic_energy,relative_L2_error,entropy,relative_entropy]
 
 
-    def solve(self,dt:float,V:np.ndarray)->tuple:
+    def solve(self,dt:float,V:np.ndarray,path:Path)->tuple:
         """Solve Landau equation.
 
         Parameters
@@ -124,6 +124,8 @@ class two_dimension_Maxwell_SBM_solution():
             Time step.
         V : np.ndarray
             The velocity matrix of particles at time T, whose shape is (num, 2).
+        path : Path
+            Parent file of experiment figure and data.
 
         Returns
         -------
@@ -169,15 +171,15 @@ class two_dimension_Maxwell_SBM_solution():
                 entropy.append(parameter[2])
                 relative_entropy.append(parameter[3])
 
-            print(f't={np.round((t + 1) * dt, 3)} finished')
+            print(f't={np.round((t + 1) * dt, 3)} finished 👌')
 
             if t % int(1 / dt) == int(1 / dt) - 1:
-                np.save(address/'data'/f'T={(t + 1) * dt}_velocity', V)
+                np.save(path/'data'/f'T={(t + 1) * dt}_velocity', V)
 
         return V,kinetic_energy,relative_L2_error,self.h**self.d*np.array(entropy),self.h**self.d*np.array(relative_entropy),Time
 
 
-def plot(T:float,V:np.ndarray,L:float,n:int,dt:float,address:str)->None:
+def plot(T:float,V:np.ndarray,L:float,n:int,path:Path)->None:
     """plot the 3d graph of solution at time T
 
     Parameters
@@ -190,9 +192,7 @@ def plot(T:float,V:np.ndarray,L:float,n:int,dt:float,address:str)->None:
         The truncated value of the velocity component.
     n : int
         The number of points taken for [-L, L] (including both ends) then minus one.
-    dt : float
-        Time step.
-    address : str
+    address : Path
         the address of saved image.
     """
     
@@ -219,12 +219,12 @@ def plot(T:float,V:np.ndarray,L:float,n:int,dt:float,address:str)->None:
     plt.plot(a,ZZ,marker='x',markersize=5,linewidth=0.9,label='SBM')
     plt.plot(a,(1 / (2 * np.pi * K) * np.exp(-p2** 2 / (2 * K)) * (2 - 1 / K + (1 - K) / (2 * K ** 2) * p2** 2)).ravel(),
         marker='*',markersize=5,linewidth=0.9,label='Exact')
-    plt.title(r'cross-section')
+    plt.title('cross-section')
     plt.xlabel(r'$v_y$')
     plt.ylabel(r'$f$')
     plt.legend(fontsize=12)
     plt.grid(True,alpha=0.3)
-    plt.savefig(address/'figure'/f'cross-section.png',dpi=250)
+    plt.savefig(path/'figure'/f'cross-section.png',dpi=250)
     plt.close()
     # plt.show()
 
@@ -245,16 +245,16 @@ def plot(T:float,V:np.ndarray,L:float,n:int,dt:float,address:str)->None:
 
     ay = fig.add_subplot(1, 2, 2, projection='3d')
     ay.plot_surface(VX, VY, Z, cmap=plt.cm.winter,alpha=1)
-    ax.set_xlabel(r'$v_x$', fontsize=12)
-    ax.set_ylabel(r'$v_y$', fontsize=12)
-    ax.set_zlabel(r'$f$', fontsize=12)
+    ay.set_xlabel(r'$v_x$', fontsize=12)
+    ay.set_ylabel(r'$v_y$', fontsize=12)
+    ay.set_zlabel(r'$f$', fontsize=12)
     ay.set_title('SBM')
-    plt.savefig(address/'figure'/f'3d-graph.png',dpi=250)
+    plt.savefig(path/'figure'/f'3d-graph.png',dpi=250)
     plt.close()
     # plt.show()
 
 
-T=1
+T=10
 v=4
 n=100
 dt=0.1
@@ -266,12 +266,12 @@ epsilon=0.01
 Lambda=1/16
 Lambda=Lambda*2
 gamma=0
-address=address/'result'/'2d_Maxwell'/'SBM'/f'T={T}_dt={dt}_n={n}_N={N}_epsilon={epsilon}'
-address.joinpath('data').mkdir(parents=True,exist_ok=True)
-address.joinpath('figure').mkdir(parents=True,exist_ok=True)
+address_save=address/'result'/'2d_Maxwell'/'SBM'/f'T={T}_dt={dt}_n={n}_N={N}_epsilon={epsilon}'
+address_save.joinpath('data').mkdir(parents=True,exist_ok=True)
+address_save.joinpath('figure').mkdir(parents=True,exist_ok=True)
 
 
-def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float)->None:
+def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float,path:Path)->None:
     """ Solve the Landau equation and save data draw graph.
 
     Parameters
@@ -288,25 +288,27 @@ def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float)
         Parameter of mollification kernel (epsilon>0).
     dt : float
         Time step.
+    path : Path
+        Parent file of experiment figure and data.
     """
     
     t = np.linspace(0, T, num=1 + int(T/Dt))
-    Y = two_dimension_Maxwell_SBM_solution(T=T, L=v, n=n, Lambda=Lambda, gamma=gamma,epsilon=epsilon)
-    V, kinetic_energy, relative_L2_error, entropy, relative_entropy, Time = Y.solve(dt=dt,V=point)
+    Y = two_dimension_Maxwell_SBM_solution(T,v,n,Lambda,gamma,epsilon)
+    V, kinetic_energy, relative_L2_error, entropy, relative_entropy, Time = Y.solve(dt,point,path)
 
-    np.save(address/'data'/f'particle-energy', kinetic_energy)
-    np.save(address/'data'/f'relative-L2-error', relative_L2_error)
-    np.save(address/'data'/f'entropy', entropy)
-    np.save(address/'data'/f'relative-entropy(SBM_vs_exact)',relative_entropy)
-    np.save(address/'data'/f'total-time', Time)
+    np.save(path/'data'/f'particle-energy', kinetic_energy)
+    np.save(path/'data'/f'relative-L2-error', relative_L2_error)
+    np.save(path/'data'/f'entropy', entropy)
+    np.save(path/'data'/f'relative-entropy(SBM_vs_exact)',relative_entropy)
+    np.save(path/'data'/f'total-time', Time)
 
     plt.plot(t, kinetic_energy)
     plt.xlabel(r"t")
     plt.ylabel(r'energy')
-    plt.title(r'energy')
+    plt.title('energy')
     plt.hlines(y=kinetic_energy[0], xmin=0, xmax=T, colors='r', linestyles='--')
     plt.grid(True,alpha=0.3)
-    plt.savefig(address/'figure'/f'particle-energy.png', dpi=250)
+    plt.savefig(path/'figure'/f'particle-energy.png', dpi=250)
     plt.close()
     # plt.show()
     plt.plot(t, relative_L2_error,marker='x',markersize=5,linewidth=0.9)
@@ -314,28 +316,28 @@ def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float)
     plt.ylabel(r'relative $L_2$ error')
     plt.title(r'relative $L_2$ error')
     plt.grid(True,alpha=0.3)
-    plt.savefig(address/'figure'/f'relative-L2-error.png', dpi=250)
+    plt.savefig(path/'figure'/f'relative-L2-error.png', dpi=250)
     plt.close()
     # plt.show()
     plt.plot(t, entropy,marker='x',markersize=5,linewidth=0.9)
     plt.xlabel(r"t")
     plt.ylabel(r'entropy')
-    plt.title(r'entropy')
+    plt.title('entropy')
     plt.grid(True,alpha=0.3)
-    plt.savefig(address/'figure'/f'entropy.png', dpi=250)
+    plt.savefig(path/'figure'/f'entropy.png', dpi=250)
     plt.close()
     # plt.show()
     plt.plot(t, relative_entropy,marker='x',markersize=5,linewidth=0.9)
     plt.xlabel(r"t")
     plt.ylabel(r'relative entropy')
-    plt.title(r'relative entropy')
+    plt.title('relative entropy')
     plt.grid(True,alpha=0.3)
-    plt.savefig(address/'figure'/f'relative-entropy(SBM_vs_Exact).png',dpi=250)
+    plt.savefig(path/'figure'/f'relative-entropy(SBM_vs_Exact).png',dpi=250)
     plt.close()
     # plt.show()
 
-    plot(T=T, V=V, L=v, n=n, dt=dt,address=address)
+    plot(T,V,v,n,path)
 
-    print('👌👊🔥🌏🌌')
+    print('👊🔥🌍🌏🌎🌌💥')
 
-save_and_draw(T=T,v=v,n=n,point=point,epsilon=epsilon,dt=dt)
+save_and_draw(T,v,n,point,epsilon,dt,address_save)

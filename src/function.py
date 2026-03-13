@@ -1,10 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(10)
-import os
+
 import random
 random.seed(10)
-import time
 
 
 def mollifier(d:int,x:np.ndarray,epsilon:float)->np.ndarray:

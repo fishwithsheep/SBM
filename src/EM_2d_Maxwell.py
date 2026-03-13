@@ -1,8 +1,16 @@
-from function import mollifier, square_collision_kernel_A, random_group
+from function import mollifier, random_group, square_collision_kernel_A
+
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('Agg')  
+plt.rcParams['text.usetex'] = True
+
 import numpy as np
 np.random.seed(10)
-import os
+
+from pathlib import Path
+address=Path.cwd().parent
+
 import random
 random.seed(10)
 import time
@@ -33,7 +41,7 @@ class two_dimension_Maxwell_EM_solution():
         """
         
         #* self.V is the velocity grid point center matrix, whose shape is (n^2,2). 
-
+        
         self.epsilon=epsilon
         self.sigma=sigma
         self.d=2
@@ -106,7 +114,8 @@ class two_dimension_Maxwell_EM_solution():
 
         return [kinetic_energy,relative_L2_error,entropy,relative_entropy]
 
-    def solve(self,dt:float,V:np.ndarray)->tuple:
+
+    def solve(self,dt:float,V:np.ndarray,path:Path)->tuple:
         """Solve Landau equation.
 
         Parameters
@@ -115,6 +124,8 @@ class two_dimension_Maxwell_EM_solution():
             Time step.
         V : np.ndarray
             The velocity matrix of particles at time T, whose shape is (num, 2).
+        path : Path
+            Parent file of experiment figure and data.
 
         Returns
         -------
@@ -140,14 +151,14 @@ class two_dimension_Maxwell_EM_solution():
             for i in range(int(length / 2)):
                 p1 = group[i, 0]
                 p2 = group[i, -1]
-                V1 = V[p1].reshape(1, -1)
-                V2 = V[p2].reshape(1, -1)
+                V1 = V[[p1]]
+                V2 = V[[p2]]
                 z = V1 - V2
                 brown = np.random.normal(loc=0, scale=dt ** 0.5, size=[self.d, 1])
                 Dv1 = -self.Lambda * z * (self.d - 1) * dt + np.matmul(square_collision_kernel_A(Lambda=self.Lambda, d=self.d, x=z,
                     gamma=self.gamma),brown).T
-                V_temporary[p1] = V1 + Dv1.ravel()
-                V_temporary[p2] = V2 - Dv1.ravel()
+                V_temporary[p1] = (V1 + Dv1).ravel()
+                V_temporary[p2] = (V2 - Dv1).ravel()
             V = V_temporary
             time_end = time.time()
             Time=Time+time_end-time_start
@@ -159,15 +170,15 @@ class two_dimension_Maxwell_EM_solution():
                 entropy.append(parameter[2])
                 relative_entropy.append(parameter[3])
 
-            print(f't={np.round((t + 1) * dt, 3)} finished')
+            print(f't={np.round((t + 1) * dt, 3)} finished 👌')
 
             if t % int(1 / dt) == int(1 / dt) - 1:
-                np.save(os.path.join(address,f'T={(t + 1) * dt}_velocity'), V)
+                np.save(path/'data'/f'T={(t + 1) * dt}_velocity', V)
 
         return V,kinetic_energy,relative_L2_error,self.h**self.d*np.array(entropy),self.h**self.d*np.array(relative_entropy),Time
 
 
-def plot(T:float,V:np.ndarray,L:float,n:int,dt:float,address:str)->None:
+def plot(T:float,V:np.ndarray,L:float,n:int,path:Path)->None:
     """plot the 3d graph of solution at time T
 
     Parameters
@@ -180,9 +191,7 @@ def plot(T:float,V:np.ndarray,L:float,n:int,dt:float,address:str)->None:
         The truncated value of the velocity component.
     n : int
         The number of points taken for [-L, L] (including both ends) then minus one.
-    dt : float
-        Time step.
-    address : str
+    address : Path
         the address of saved image.
     """
     
@@ -206,13 +215,15 @@ def plot(T:float,V:np.ndarray,L:float,n:int,dt:float,address:str)->None:
         choice = np.where(z < 0.7)
         x = x[choice]
         ZZ[i] = np.sum(mollifier(d=d, x=x, epsilon=epsilon).reshape(-1, 1), axis=0) / length
-    plt.plot(a,ZZ,label='EM')
-    plt.plot(a,(1 / (2 * np.pi * K) * np.exp(-p2** 2 / (2 * K)) * (2 - 1 / K + (1 - K) / (2 * K ** 2) * p2** 2)).ravel(),label='exact')
+    plt.plot(a,ZZ,marker='x',markersize=5,linewidth=0.9,label='EM')
+    plt.plot(a,(1 / (2 * np.pi * K) * np.exp(-p2** 2 / (2 * K)) * (2 - 1 / K + (1 - K) / (2 * K ** 2) * p2** 2)).ravel(),
+        marker='*',markersize=5,linewidth=0.9,label='Exact')
     plt.title('cross-section')
-    plt.xlabel('v_y')
-    plt.ylabel('f')
-    plt.legend()
-    plt.savefig(os.path.join(address,f'cross-section.png'),dpi=160)
+    plt.xlabel(r'$v_y$')
+    plt.ylabel(r'$f$')
+    plt.legend(fontsize=12)
+    plt.grid(True,alpha=0.3)
+    plt.savefig(path/'figure'/f'cross-section.png',dpi=250)
     plt.close()
     # plt.show()
 
@@ -226,39 +237,39 @@ def plot(T:float,V:np.ndarray,L:float,n:int,dt:float,address:str)->None:
     fig = plt.figure(figsize=(17, 8))
     ax = fig.add_subplot(1,2,1,projection='3d')
     ax.plot_surface(VX, VY, Z-Z_, cmap=plt.cm.winter, alpha=1)
-    ax.set_xlabel('v_x', fontsize=15)
-    ax.set_ylabel('v_y', fontsize=15)
-    ax.set_zlabel('n', fontsize=15)
-    ax.set_title('EM-exact')
+    ax.set_xlabel(r'$v_x$', fontsize=12)
+    ax.set_ylabel(r'$v_y$', fontsize=12)
+    ax.set_zlabel(r'$f$', fontsize=12)
+    ax.set_title('EM-Exact')
 
     ay = fig.add_subplot(1, 2, 2, projection='3d')
     ay.plot_surface(VX, VY, Z, cmap=plt.cm.winter,alpha=1)
-    ay.set_xlabel('v_x', fontsize=15)
-    ay.set_ylabel('v_y', fontsize=15)
-    ay.set_zlabel('n', fontsize=15)
+    ay.set_xlabel(r'$v_x$', fontsize=12)
+    ay.set_ylabel(r'$v_y$', fontsize=12)
+    ay.set_zlabel(r'$f$', fontsize=12)
     ay.set_title('EM')
-    plt.savefig(os.path.join(address,f'3d-graph.png'),dpi=160)
+    plt.savefig(path/'figure'/f'3d-graph.png',dpi=250)
     plt.close()
     # plt.show()
 
 
-T=200
+T=2
 v=4
 n=100
 dt=0.2
-Dt=1
-point=np.load(os.path.join(os.getcwd(),'data','initial_distribution_sampling\\100000_points_2d-Maxwell.npy'))[:10000]
+Dt=0.2
+point=np.load(address/'data'/'initial_distribution_sampling'/'100000_points_2d-Maxwell.npy')[:10000]
 N=point.shape[0]
 DT=int(Dt/dt)
 epsilon=0.01
 Lambda=1/16
 Lambda=Lambda*2
 gamma=0
-address=os.path.join(os.getcwd(),'2d_Maxwell','EM',f'T={T}_dt={dt}_n={n}_N={N}_epsilon={epsilon}')
-os.makedirs(address,exist_ok=True)
+address_save=address/'result'/'2d_Maxwell'/'EM'/f'T={T}_dt={dt}_n={n}_N={N}_epsilon={epsilon}'
+address_save.joinpath('data').mkdir(parents=True,exist_ok=True)
+address_save.joinpath('figure').mkdir(parents=True,exist_ok=True)
 
-
-def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float)->None:
+def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float,path:Path)->None:
     """ Solve the Landau equation and save data draw graph.
 
     Parameters
@@ -275,50 +286,56 @@ def save_and_draw(T:float,v:float,n:int,point:np.ndarray,epsilon:float,dt:float)
         Parameter of mollification kernel (epsilon>0).
     dt : float
         Time step.
+    path : Path
+        Parent file of experiment figure and data.
     """
     
     t = np.linspace(0, T, num=1 + int(T/Dt))
-    Y = two_dimension_Maxwell_EM_solution(T=T, L=v, n=n, Lambda=Lambda, gamma=gamma,epsilon=epsilon)
-    V, kinetic_energy, relative_L2_error, entropy, relative_entropy, Time = Y.solve(dt=dt,V=point)
+    Y = two_dimension_Maxwell_EM_solution(T,v,n,Lambda,gamma,epsilon)
+    V, kinetic_energy, relative_L2_error, entropy, relative_entropy, Time = Y.solve(dt,point,path)
 
-    np.save(os.path.join(address,f'particle-energy'), kinetic_energy)
-    np.save(os.path.join(address,f'relative-L2-error'), relative_L2_error)
-    np.save(os.path.join(address,f'entropy'), entropy)
-    np.save(os.path.join(address,f'relative-entropy(EM_vs_reference)'),relative_entropy)
-    np.save(os.path.join(address,f'total-time'), Time)
+    np.save(path/'data'/f'particle-energy', kinetic_energy)
+    np.save(path/'data'/f'relative-L2-error', relative_L2_error)
+    np.save(path/'data'/f'entropy', entropy)
+    np.save(path/'data'/f'relative-entropy(EM_vs_exact)',relative_entropy)
+    np.save(path/'data'/f'total-time', Time)
 
     plt.plot(t, kinetic_energy)
-    plt.xlabel("T")
-    plt.ylabel('Energy')
-    plt.title('Energy')
+    plt.xlabel(r"t")
+    plt.ylabel(r'energy')
+    plt.title('energy')
     plt.hlines(y=kinetic_energy[0], xmin=0, xmax=T, colors='r', linestyles='--')
-    plt.savefig(os.path.join(address,f'particle-energy.png'), dpi=160)
+    plt.grid(True,alpha=0.3)
+    plt.savefig(path/'figure'/f'particle-energy.png', dpi=250)
     plt.close()
     # plt.show()
-    plt.plot(t, relative_L2_error)
-    plt.xlabel("T")
-    plt.ylabel('relative L2 error')
-    plt.title('relative L2 error')
-    plt.savefig(os.path.join(address,f'relative-L2-error.png'), dpi=160)
+    plt.plot(t, relative_L2_error,marker='x',markersize=5,linewidth=0.9)
+    plt.xlabel(r"t")
+    plt.ylabel(r'relative $L_2$ error')
+    plt.title(r'relative $L_2$ error')
+    plt.grid(True,alpha=0.3)
+    plt.savefig(path/'figure'/f'relative-L2-error.png', dpi=250)
     plt.close()
     # plt.show()
-    plt.plot(t, entropy)
-    plt.xlabel("T")
-    plt.ylabel('entropy')
+    plt.plot(t, entropy,marker='x',markersize=5,linewidth=0.9)
+    plt.xlabel(r"t")
+    plt.ylabel(r'entropy')
     plt.title('entropy')
-    plt.savefig(os.path.join(address,f'entropy.png'), dpi=160)
+    plt.grid(True,alpha=0.3)
+    plt.savefig(path/'figure'/f'entropy.png', dpi=250)
     plt.close()
     # plt.show()
-    plt.plot(t, relative_entropy)
-    plt.xlabel("T")
-    plt.ylabel('relative entropy')
+    plt.plot(t, relative_entropy,marker='x',markersize=5,linewidth=0.9)
+    plt.xlabel(r"t")
+    plt.ylabel(r'relative entropy')
     plt.title('relative entropy')
-    plt.savefig(os.path.join(address,f'relative-entropy(EM_vs_reference).png'),dpi=160)
+    plt.grid(True,alpha=0.3)
+    plt.savefig(path/'figure'/f'relative-entropy(EM_vs_Exact).png',dpi=250)
     plt.close()
     # plt.show()
 
-    plot(T=T, V=V, L=v, n=n, dt=dt,address=address)
+    plot(T,V,v,n,path)
 
-    print( 'ok')
+    print('👊🔥🌍🌏🌎🌌💥')
 
-save_and_draw(T=T,v=v,n=n,point=point,epsilon=epsilon,dt=dt)
+save_and_draw(T,v,n,point,epsilon,dt,address_save)
