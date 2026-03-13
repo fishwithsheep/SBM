@@ -6,7 +6,7 @@ We offer the code of four numerical experiments in our article(see References), 
 
 ## References
 If you have used this code, please cite the following paper:
-[Paper Title](https://doi.org/10.1016/j.jcp.2025.114387)
+[A structure-preserving collisional particle method for the Landau kinetic equation](https://doi.org/10.1016/j.jcp.2025.114387)
 
 
 ## SBM
@@ -17,4 +17,4 @@ If you have used this code, please cite the following paper:
 
 ## 引用
 如果您使用了本代码，请引用以下论文：
-[论文标题](https://doi.org/10.1016/j.jcp.2025.114387)
+[A structure-preserving collisional particle method for the Landau kinetic equation](https://doi.org/10.1016/j.jcp.2025.114387)
